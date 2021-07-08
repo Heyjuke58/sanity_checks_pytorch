@@ -80,7 +80,7 @@ def visualize_cascading_randomization(model, module_paths, examples, saliency_me
 
     # show input image at the very left
     for (image, _), row in zip(examples, range(nrows)):
-        npimg = np.squeeze(np.squeeze(image.numpy()))
+        npimg = image.squeeze(0).permute(1, 2, 0).numpy()
         axs[row, 0].imshow(npimg, cmap='gray')
         axs[row, 0].axis('off')
 
@@ -121,8 +121,9 @@ def visualize_cascading_randomization_single_example(model, module_paths, exampl
     fig.subplots_adjust(hspace=0, wspace=0)
 
     # show input image at the very left
-    npimg = np.squeeze(np.squeeze(image.numpy()))
+    npimg = image.squeeze(0).permute(1, 2, 0).numpy()
     axs[0].imshow(npimg, cmap='gray')
+    #axs[0].imshow(npimg)
     axs[0].axis('off')
 
     # show visualizations before scrambling the model
@@ -161,7 +162,7 @@ def visualize_cascading_randomization2(model, module_paths, example, sal_methods
 
     # show input image at the very left
     for row in range(nrows):
-        npimg = np.squeeze(np.squeeze(image.numpy()))
+        npimg = image.squeeze(0).permute(1, 2, 0).numpy()
         axs[row, 0].imshow(npimg, cmap='gray')
         axs[row, 0].axis('on')
         axs[row, 0].set_xticks([])
