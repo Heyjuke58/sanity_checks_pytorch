@@ -69,7 +69,7 @@ def get_kwargs(saliency_method, model, image, label):
     return sal_kwargs
 
 
-def visualize_cascading_randomization(model, module_paths, examples, saliency_method):
+def visualize_cascading_randomization(model, module_paths, saliency_method, examples, originals=None, cls_index_to_name=None):
     model_copy = copy.deepcopy(model)
 
     # make plt plot
@@ -79,10 +79,32 @@ def visualize_cascading_randomization(model, module_paths, examples, saliency_me
     fig.subplots_adjust(hspace=0, wspace=0)
 
     # show input image at the very left
-    for (image, _), row in zip(examples, range(nrows)):
-        npimg = image.squeeze(0).permute(1, 2, 0).numpy()
+    for (original, label), (image, _), row in zip(examples if not originals else originals, examples, range(nrows)):
+        npimg = original.squeeze(0).permute(1, 2, 0).numpy()
         axs[row, 0].imshow(npimg, cmap='gray')
-        axs[row, 0].axis('off')
+        axs[row, 0].axis('on')
+        axs[row, 0].set_xticks([])
+        axs[row, 0].set_yticks([])
+        # show true label for each row
+        # probabilities = torch.nn.functional.softmax(output[0], dim=0)
+        # # Read the categories
+        # with open("imagenet_classes.txt", "r") as f:
+        #     categories = [s.strip() for s in f.readlines()]
+        # # Show top categories per image
+        # top5_prob, top5_catid = torch.topk(probabilities, 5)
+        # for i in range(top5_prob.size(0)):
+        #     print(categories[top5_catid[i]], top5_prob[i].item())
+        _, top1 = torch.topk(model(image)[0], 1)
+        if cls_index_to_name:
+            # lookup title name
+            title = cls_index_to_name[label.item()]
+            pred = cls_index_to_name[top1.item()]
+        else:
+            title = str(label.item())
+            pred = str(top1.item())
+        # pred = model(image)
+        axs[row, 0].set_ylabel("true: " + title + "\npred: " + pred, rotation=90, size='large')
+
 
     # show visualizations before scrambling the model
     for (image, label), row in zip(examples, range(nrows)):
