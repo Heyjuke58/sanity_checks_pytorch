@@ -35,14 +35,14 @@ def attribute_image_features(model, algorithm, input, label, **kwargs):
 
 
 # Given a NN model, ...
-def visualize_saliency_method(saliency_kwargs, image, plt_fig_axis):
+def visualize_saliency_method(saliency_kwargs, image, plt_fig_axis, viz_method):
     image.requires_grad = True
     attrs = attribute_image_features(**saliency_kwargs)
     attrs = np.transpose(attrs.squeeze(0).cpu().detach().numpy(), (1,2,0))
     original_image = np.transpose(image.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
-    return viz.visualize_image_attr(attrs, original_image, method="heat_map",sign="absolute_value",
-                          plt_fig_axis=plt_fig_axis, cmap="Blues", show_colorbar=False,
-                          use_pyplot=False)
+    return viz.visualize_image_attr(attrs, original_image, method=viz_method, sign="absolute_value",
+                          plt_fig_axis=plt_fig_axis, cmap="Reds", show_colorbar=False,
+                          use_pyplot=False, alpha_overlay=0.9)
 
 
 def get_kwargs(saliency_method, model, image, label):
@@ -70,13 +70,13 @@ def get_kwargs(saliency_method, model, image, label):
 
 
 # topn: How many top prediction results should be printed out for each image
-def visualize_cascading_randomization(model, module_paths, saliency_method, examples, originals=None, cls_index_to_name=None, topn=1):
+def visualize_cascading_randomization(model, module_paths, saliency_method, examples, originals=None, cls_index_to_name=None, topn=1, viz_method="heat_map"):
     model_copy = copy.deepcopy(model)
 
     # make plt plot
     nrows = len(examples)
     ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5*ncols, 5*nrows))
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows))
     fig.subplots_adjust(hspace=0, wspace=0)
 
     # show input image at the very left
@@ -111,7 +111,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
     for (image, label), row in zip(examples, range(nrows)):
         pred = model_copy(image).argmax(axis=1).item()
         sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
-        fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, 1]))
+        fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, 1]), viz_method)
 
     # cascading randomization and visualization of IG
     # start with 1 because 0th column is unscrambled model
@@ -120,7 +120,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         for (image, label), row in zip(examples, range(nrows)):
             pred = model_copy(image).argmax(axis=1).item()
             sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
-            fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]))
+            fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method)
 
     # set titles for each column
     col_titles = ['input', 'normal model'] + [x for x in map((lambda x: '_'.join(x)), module_paths)]
@@ -133,59 +133,20 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
     return fig, axs
 
 
-def visualize_cascading_randomization_single_example(model, module_paths, example, saliency_method):
-    model_copy = copy.deepcopy(model)
-
-    image, label = example
-
-    # make plt plot
-    ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=1, ncols=ncols, figsize=(3*ncols, 3*1+0.5))
-    fig.subplots_adjust(hspace=0, wspace=0)
-
-    # show input image at the very left
-    npimg = image.squeeze(0).permute(1, 2, 0).numpy()
-    axs[0].imshow(npimg, cmap='gray')
-    #axs[0].imshow(npimg)
-    axs[0].axis('off')
-
-    # show visualizations before scrambling the model
-    pred = model_copy(image).argmax(axis=1).item()
-    sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
-    fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[1]))
-
-    # cascading randomization and visualization of IG
-    # start with 1 because 0th column is unscrambled model
-    for path, col in zip(module_paths, range(2, ncols)):
-        rand_layers(model_copy, [path])
-        pred = model_copy(image).argmax(axis=1).item()
-        sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
-        fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[col]))
-
-    # set titles for each column
-    col_titles = ['input', 'normal model'] + [x for x in map((lambda x: '_'.join(x)), module_paths)]
-    for ax, col in zip(axs, col_titles):
-        ax.set_title(col)
-
-    # set title for the whole thing
-    fig.suptitle(saliency_method.__name__)
-
-    return fig, axs
-
-
-def visualize_cascading_randomization2(model, module_paths, example, sal_methods, sal_method_names):
+def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_method_names, example, original=None, viz_method="heat_map"):
     model_copy = copy.deepcopy(model)
     image, label = example
+    original = image if original is None else original
 
     # make plt plot
     nrows = len(sal_methods)
     ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3*ncols, 3*nrows))
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows))
     fig.subplots_adjust(hspace=0, wspace=0)
 
     # show input image at the very left
     for row in range(nrows):
-        npimg = image.squeeze(0).permute(1, 2, 0).numpy()
+        npimg = original.squeeze(0).permute(1, 2, 0).numpy()
         axs[row, 0].imshow(npimg, cmap='gray')
         axs[row, 0].axis('on')
         axs[row, 0].set_xticks([])
@@ -195,7 +156,7 @@ def visualize_cascading_randomization2(model, module_paths, example, sal_methods
     for sal_method, row in zip(sal_methods, range(nrows)):
         pred = model_copy(image).argmax(axis=1).item()
         sal_kwargs = get_kwargs(sal_method, model_copy, image, label)
-        fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, 1]))
+        fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, 1]), viz_method)
 
     # cascading randomization and visualization
     # start with 1 because 0th column is unscrambled model
@@ -204,7 +165,7 @@ def visualize_cascading_randomization2(model, module_paths, example, sal_methods
         for sal_method, row in zip(sal_methods, range(nrows)):
             pred = model_copy(image).argmax(axis=1).item()
             sal_kwargs = get_kwargs(sal_method, model_copy, image, label)
-            fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]))
+            fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method)
 
     # set titles for each column
     col_titles = ['input', 'normal model'] + [x for x in map((lambda x: '_'.join(x)), module_paths)]
