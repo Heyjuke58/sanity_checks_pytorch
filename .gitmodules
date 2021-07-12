@@ -1,3 +1,6 @@
 [submodule "imagenet-sample-images"]
 	path = imagenet-sample-images
 	url = git@github.com:EliSchwartz/imagenet-sample-images.git
+[submodule "pytorch-ssim"]
+	path = pytorch-ssim
+	url = git@github.com:Po-Hsun-Su/pytorch-ssim.git
