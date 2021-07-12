@@ -69,13 +69,14 @@ def get_kwargs(saliency_method, model, image, label):
     return sal_kwargs
 
 
-def visualize_cascading_randomization(model, module_paths, saliency_method, examples, originals=None, cls_index_to_name=None):
+# topn: How many top prediction results should be printed out for each image
+def visualize_cascading_randomization(model, module_paths, saliency_method, examples, originals=None, cls_index_to_name=None, topn=1):
     model_copy = copy.deepcopy(model)
 
     # make plt plot
     nrows = len(examples)
     ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3*ncols, 3*nrows))
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(5*ncols, 5*nrows))
     fig.subplots_adjust(hspace=0, wspace=0)
 
     # show input image at the very left
@@ -94,16 +95,16 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         # top5_prob, top5_catid = torch.topk(probabilities, 5)
         # for i in range(top5_prob.size(0)):
         #     print(categories[top5_catid[i]], top5_prob[i].item())
-        _, top1 = torch.topk(model(image)[0], 1)
+        top_probs, top_idxs = torch.topk(torch.nn.functional.softmax(model(image)[0], dim=0), topn)
         if cls_index_to_name:
             # lookup title name
             title = cls_index_to_name[label.item()]
-            pred = cls_index_to_name[top1.item()]
+            preds = "\n".join([f"{cls_index_to_name[top_idx.item()]} (p={top_prob:.2f})" for top_idx, top_prob in zip(top_idxs, top_probs)])
         else:
             title = str(label.item())
-            pred = str(top1.item())
+            preds = "\n".join([f"{str(top_idx.item())} (p={top_prob:.2f})" for top_idx, top_prob in zip(top_idxs, top_probs)])
         # pred = model(image)
-        axs[row, 0].set_ylabel("true: " + title + "\npred: " + pred, rotation=90, size='large')
+        axs[row, 0].set_ylabel("true: " + title + "\npreds: " + str(preds), rotation=90, size='large')
 
 
     # show visualizations before scrambling the model
