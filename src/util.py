@@ -1,3 +1,4 @@
+from src import ssim
 import torch
 from torch.nn import BatchNorm2d, Conv2d, Linear
 from torch.nn.modules.container import Sequential
@@ -5,9 +6,12 @@ from torchvision.models.resnet import BasicBlock
 from captum.attr import IntegratedGradients, Saliency, InputXGradient, GuidedBackprop, DeepLift
 import numpy as np
 from captum.attr import visualization as viz
+from captum.attr._utils.visualization import _normalize_image_attr
 import matplotlib.pyplot as plt
 import copy
+import time
 
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 def rand_layers(model, module_paths):
     for module_path in module_paths:
@@ -136,7 +140,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
 def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_method_names, example, original=None, viz_method="heat_map"):
     model_copy = copy.deepcopy(model)
     image, label = example
-    original = image if original is None else original
+    original = image if original is None else original # for showing unnormalized image
 
     # make plt plot
     nrows = len(sal_methods)
@@ -152,18 +156,13 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
         axs[row, 0].set_xticks([])
         axs[row, 0].set_yticks([])
 
-    # show visualizations before scrambling the model
-    for sal_method, row in zip(sal_methods, range(nrows)):
-        pred = model_copy(image).argmax(axis=1).item()
-        sal_kwargs = get_kwargs(sal_method, model_copy, image, label)
-        fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, 1]), viz_method)
-
-    # cascading randomization and visualization
-    # start with 1 because 0th column is unscrambled model
-    for path, col in zip(module_paths, range(2, ncols)):
-        rand_layers(model_copy, [path])
+    # visualization before scrambling the model, and cascading randomization and visualization
+    # start with 2 because 1st column is unscrambled model
+    for path, col in zip([None] + module_paths, range(1, ncols)):
+        if col != 1:
+            rand_layers(model_copy, [path])
         for sal_method, row in zip(sal_methods, range(nrows)):
-            pred = model_copy(image).argmax(axis=1).item()
+            # pred = model_copy(image).argmax(axis=1).item()
             sal_kwargs = get_kwargs(sal_method, model_copy, image, label)
             fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method)
 
@@ -180,3 +179,34 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
     fig.suptitle("Cascading Randomization")
 
     return fig, axs
+
+
+#
+def ssim_saliency_comparision(model, module_paths, sal_methods, sal_method_names, data_loader):
+    model_copy = copy.deepcopy(model)
+    ssim_loss = ssim.SSIM()
+
+    # get all original explanations
+    original_explanations = {} # key: (image_id, sal_method_id)
+    for img_id, (img, label) in enumerate(data_loader):
+        print(img_id)
+        for sal_id, sal_method in enumerate(sal_methods):
+            # t_1 = time.time()
+            attribution = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
+            # t_2 = time.time()
+            original_explanations[(img_id, sal_id)] = _normalize_image_attr(np.transpose(attribution.squeeze(0).detach().numpy(), (1,2,0)), "absolute_value") # TODO move to GPU???
+            # t_3 = time.time()
+            # print(sal_method)
+            # print(f"attribute_image_features: {t_2 - t_1}\nnormalize stuff: {t_3 - t_2}")
+    return original_explanations
+    # TODO do all versions of the model, aggregate ssio scores
+    # TODO remove pytorch_ssim folder perhaps
+
+# np.transpose(attrs.squeeze(0).cpu().detach().numpy(), (1,2,0))
+    # iterate over scrambled versions of the model
+    # ssim_similarities = {} # key: (model_scramble_stage, sal_method_id)
+    # for path in module_paths:
+    #     ssim_sums = []
+    #     for image, _ in data_loader:
+    #         for sal_id, sal_method in enumerate(sal_methods):
+    #             ssim_sums[sal_id] +=
