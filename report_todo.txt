@@ -1,0 +1,6 @@
+SSIM similarities for ResNet18:
+- not clear how to normalize saliency maps before comparing them with SSIM
+  - using captum's own normalize method (from captum.attr._utils.visualization import _normalize_image_attr):
+    - results dissimilar to those of the paper with Inception v3
+  - using no normalization (raw saliency maps, values very small)
+  - try their normalization (squash values to [0, 1]-interval)
