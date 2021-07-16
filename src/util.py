@@ -189,24 +189,39 @@ def ssim_saliency_comparision(model, module_paths, sal_methods, sal_method_names
     # get all original explanations
     original_explanations = {} # key: (image_id, sal_method_id)
     for img_id, (img, label) in enumerate(data_loader):
-        print(img_id)
         for sal_id, sal_method in enumerate(sal_methods):
-            # t_1 = time.time()
             attribution = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
-            # t_2 = time.time()
-            original_explanations[(img_id, sal_id)] = _normalize_image_attr(np.transpose(attribution.squeeze(0).detach().numpy(), (1,2,0)), "absolute_value") # TODO move to GPU???
-            # t_3 = time.time()
-            # print(sal_method)
-            # print(f"attribute_image_features: {t_2 - t_1}\nnormalize stuff: {t_3 - t_2}")
-    return original_explanations
-    # TODO do all versions of the model, aggregate ssio scores
+            #attribution = _normalize_image_attr(np.transpose(attribution.squeeze(0).detach().numpy(), (1,2,0)), "absolute_value")
+            attribution = np.transpose(attribution.squeeze(0).detach().numpy(), (1,2,0))
+            attribution = np.sum(attribution, axis=2)
+            original_explanations[(img_id, sal_id)] = torch.tensor(attribution).unsqueeze(0).unsqueeze(0)
+
     # TODO remove pytorch_ssim folder perhaps
 
-# np.transpose(attrs.squeeze(0).cpu().detach().numpy(), (1,2,0))
     # iterate over scrambled versions of the model
-    # ssim_similarities = {} # key: (model_scramble_stage, sal_method_id)
-    # for path in module_paths:
-    #     ssim_sums = []
-    #     for image, _ in data_loader:
-    #         for sal_id, sal_method in enumerate(sal_methods):
-    #             ssim_sums[sal_id] +=
+    ssim_similarities = {} # key: (model_scramble_stage, sal_method_id)
+    for path in module_paths:
+        rand_layers(model_copy, [path])
+        for (sal_id, sal_method), sal_method_name in zip(enumerate(sal_methods), sal_method_names):
+            ssim_sum = 0
+            errors = 0
+            if not sal_method_name in ssim_similarities:
+                ssim_similarities[sal_method_name] = {}
+            for img_id, (img, label) in enumerate(data_loader):
+                try:
+                    attrs = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
+                    
+                    #attrs = _normalize_image_attr(np.transpose(attrs.squeeze(0).detach().numpy(), (1,2,0)), "absolute_value")
+                    attrs = np.transpose(attrs.squeeze(0).detach().numpy(), (1,2,0))
+                    attrs = np.sum(attrs, axis=2)
+                    # TODO: use skimage ssim with 3 channels
+                    # TODO: skimage: scikit-image 0.15.0
+                    attrs = torch.tensor(attrs).unsqueeze(0).unsqueeze(0)
+                    ssim_sum += ssim_loss(original_explanations[(img_id, sal_id)], attrs) # calculate ssim score with original attribution and add to sum
+                except Exception as e:
+                    print(e)
+                    print(f'Error with image: {img_id}, sal method: {sal_method_name}, path: {"_".join(path)}')
+                    errors += 1
+            ssim_similarities[sal_method_name]['_'.join(path)] = (ssim_sum / (len(data_loader) - errors)).item() # save ssim similarity to dict
+    
+    return ssim_similarities
