@@ -9,7 +9,7 @@ from captum.attr import visualization as viz
 from captum.attr._utils.visualization import _normalize_image_attr
 import matplotlib.pyplot as plt
 import copy
-import time
+from skimage.measure import compare_ssim
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -181,6 +181,13 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
     return fig, axs
 
 
+# Normalize all values in tensor to [0, 1] range
+def normalize_0_1(tensor):
+    tensor -= tensor.min()
+    tensor /= tensor.max()
+    return tensor
+
+
 #
 def ssim_saliency_comparision(model, module_paths, sal_methods, sal_method_names, data_loader):
     model_copy = copy.deepcopy(model)
@@ -191,10 +198,8 @@ def ssim_saliency_comparision(model, module_paths, sal_methods, sal_method_names
     for img_id, (img, label) in enumerate(data_loader):
         for sal_id, sal_method in enumerate(sal_methods):
             attribution = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
-            #attribution = _normalize_image_attr(np.transpose(attribution.squeeze(0).detach().numpy(), (1,2,0)), "absolute_value")
-            attribution = np.transpose(attribution.squeeze(0).detach().numpy(), (1,2,0))
-            attribution = np.sum(attribution, axis=2)
-            original_explanations[(img_id, sal_id)] = torch.tensor(attribution).unsqueeze(0).unsqueeze(0)
+            attribution = normalize_0_1(attribution.squeeze().permute(1, 2, 0)).detach().numpy()
+            original_explanations[(img_id, sal_id)] = attribution
 
     # TODO remove pytorch_ssim folder perhaps
 
@@ -209,19 +214,16 @@ def ssim_saliency_comparision(model, module_paths, sal_methods, sal_method_names
                 ssim_similarities[sal_method_name] = {}
             for img_id, (img, label) in enumerate(data_loader):
                 try:
-                    attrs = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
-                    
+                    attribution = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
+                    attribution = normalize_0_1(attribution.squeeze().permute(1, 2, 0)).detach().numpy()
                     #attrs = _normalize_image_attr(np.transpose(attrs.squeeze(0).detach().numpy(), (1,2,0)), "absolute_value")
-                    attrs = np.transpose(attrs.squeeze(0).detach().numpy(), (1,2,0))
-                    attrs = np.sum(attrs, axis=2)
                     # TODO: use skimage ssim with 3 channels
                     # TODO: skimage: scikit-image 0.15.0
-                    attrs = torch.tensor(attrs).unsqueeze(0).unsqueeze(0)
-                    ssim_sum += ssim_loss(original_explanations[(img_id, sal_id)], attrs) # calculate ssim score with original attribution and add to sum
+                    ssim_sum += compare_ssim(original_explanations[(img_id, sal_id)], attribution, multichannel=True, gaussian_weights=True) # calculate ssim score with original attribution and add to sum
                 except Exception as e:
                     print(e)
                     print(f'Error with image: {img_id}, sal method: {sal_method_name}, path: {"_".join(path)}')
                     errors += 1
             ssim_similarities[sal_method_name]['_'.join(path)] = (ssim_sum / (len(data_loader) - errors)).item() # save ssim similarity to dict
-    
+
     return ssim_similarities
