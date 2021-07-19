@@ -1,15 +1,14 @@
-from src import ssim
 import torch
 from torch.nn import BatchNorm2d, Conv2d, Linear
 from torch.nn.modules.container import Sequential
 from torchvision.models.resnet import BasicBlock
-from captum.attr import IntegratedGradients, Saliency, InputXGradient, GuidedBackprop, DeepLift
+from captum.attr import IntegratedGradients, Saliency, InputXGradient, GuidedBackprop, DeepLift, NoiseTunnel
 import numpy as np
 from captum.attr import visualization as viz
-from captum.attr._utils.visualization import _normalize_image_attr
 import matplotlib.pyplot as plt
 import copy
 from skimage.measure import compare_ssim
+from typing import Tuple, Any
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -49,8 +48,9 @@ def visualize_saliency_method(saliency_kwargs, image, plt_fig_axis, viz_method):
                           use_pyplot=False, alpha_overlay=0.9)
 
 
-def get_kwargs(saliency_method, model, image, label):
-    sal_kwargs = {
+def get_kwargs(saliency_method: Tuple[Any, bool], model, image, label):
+    saliency_method, noise_tunnelling = saliency_method
+    sal_kwargs = { # these are the default args for attribute_image_features
         'algorithm': saliency_method(model),
         'model': model,
         'input': image,
@@ -69,6 +69,14 @@ def get_kwargs(saliency_method, model, image, label):
         pass
     else:
         raise Exception("Saliency method not supported :(")
+
+    if noise_tunnelling:
+        sal_kwargs.update({
+            'algorithm': NoiseTunnel(sal_kwargs['algorithm']),
+            'nt_type': 'smoothgrad', # unsure about this one, see p.3 (SmoothGrad) in paper
+            'nt_samples': 50, # from their code
+            'stdevs': 0.15 # from their code
+        })
 
     return sal_kwargs
 
@@ -132,7 +140,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         ax.set_title(col)
 
     # set title for the whole thing
-    fig.suptitle(saliency_method.__name__)
+    fig.suptitle(saliency_method[0].__name__ + " (Smoothing = " + saliency_method[1] + ")")
 
     return fig, axs
 
@@ -189,9 +197,8 @@ def normalize_0_1(tensor):
 
 
 #
-def ssim_saliency_comparision(model, module_paths, sal_methods, sal_method_names, data_loader):
+def ssim_saliency_comparison(model, module_paths, sal_methods, sal_method_names, data_loader):
     model_copy = copy.deepcopy(model)
-    ssim_loss = ssim.SSIM()
 
     # get all original explanations
     original_explanations = {} # key: (image_id, sal_method_id)
