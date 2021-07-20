@@ -140,7 +140,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         ax.set_title(col)
 
     # set title for the whole thing
-    fig.suptitle(saliency_method[0].__name__ + " (Smoothing = " + saliency_method[1] + ")")
+    fig.suptitle(saliency_method[0].__name__ + " (Smoothing = " + str(saliency_method[1]) + ")")
 
     return fig, axs
 
@@ -207,8 +207,6 @@ def ssim_saliency_comparison(model, module_paths, sal_methods, sal_method_names,
             attribution = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
             attribution = normalize_0_1(attribution.squeeze().permute(1, 2, 0)).detach().numpy()
             original_explanations[(img_id, sal_id)] = attribution
-
-    # TODO remove pytorch_ssim folder perhaps
 
     # iterate over scrambled versions of the model
     ssim_similarities = {} # key: (model_scramble_stage, sal_method_id)
