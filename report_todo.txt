@@ -6,3 +6,9 @@ SSIM similarities for ResNet18:
   - try their normalization (squash values to [0, 1]-interval)
 
 - our CNN for MNIST has the same architecture as theirs
+- tried out IntegratedGradients with smoothing, but it crashed our kernel
+- some issues with IntegratedGradients:
+  -
+- some issues with GuidedBackprop:
+  - use of deprecated function by captum with ReLU (settings backward hooks)
+  - returns very different results sometimes
