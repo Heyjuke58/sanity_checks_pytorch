@@ -12,6 +12,14 @@ from typing import Tuple, Any
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
+# visualization stuff
+TIGHT_LAYOUT_PARAMS = {
+        "pad": 0,
+        "h_pad": 0,
+        "w_pad": 0,
+        "rect": (0, 0, 1, 1)
+    }
+
 def rand_layers(model, module_paths):
     for module_path in module_paths:
         cur = model
@@ -88,8 +96,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
     # make plt plot
     nrows = len(examples)
     ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows))
-    fig.subplots_adjust(hspace=0, wspace=0)
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows), tight_layout=TIGHT_LAYOUT_PARAMS)
 
     # show input image at the very left
     for (original, label), (image, _), row in zip(examples if not originals else originals, examples, range(nrows)):
@@ -140,7 +147,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         ax.set_title(col)
 
     # set title for the whole thing
-    fig.suptitle(saliency_method[0].__name__ + " (Smoothing = " + str(saliency_method[1]) + ")")
+    fig.suptitle(saliency_method[0].__name__ + " (Smoothing = " + str(saliency_method[1]) + ")", y=1.02, fontsize=36)
 
     return fig, axs
 
@@ -153,8 +160,7 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
     # make plt plot
     nrows = len(sal_methods)
     ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows))
-    fig.subplots_adjust(hspace=0, wspace=0)
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows), tight_layout=TIGHT_LAYOUT_PARAMS)
 
     # show input image at the very left
     for row in range(nrows):
@@ -185,7 +191,7 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
         ax.set_ylabel(name, rotation=90, size='large')
 
     # set title for the whole thing
-    fig.suptitle("Cascading Randomization")
+    fig.suptitle("Cascading Randomization", y=1.02, fontsize=36)
 
     return fig, axs
 
