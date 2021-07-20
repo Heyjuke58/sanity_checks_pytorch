@@ -8,7 +8,8 @@ SSIM similarities for ResNet18:
 - our CNN for MNIST has the same architecture as theirs
 - tried out IntegratedGradients with smoothing, but it crashed our kernel
 - some issues with IntegratedGradients:
-  -
+  - may look a bit different than in paper (?)
 - some issues with GuidedBackprop:
-  - use of deprecated function by captum with ReLU (settings backward hooks)
+  - use of deprecated function by captum with ReLU (settings non-full backward hooks)
+  -> this only happens sometimes for some reason
   - returns very different results sometimes
