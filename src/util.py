@@ -171,6 +171,7 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
             rand_layers(model_copy, [path])
         for sal_method, row in zip(sal_methods, range(nrows)):
             # pred = model_copy(image).argmax(axis=1).item()
+            print("Working on " + sal_method[0].__name__)
             sal_kwargs = get_kwargs(sal_method, model_copy, image, label)
             fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method)
 
