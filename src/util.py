@@ -132,10 +132,10 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
         fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, 1]), viz_method)
 
-    # cascading randomization and visualization of IG
+    # cascading randomization and visualization
     # start with 1 because 0th column is unscrambled model
-    for path, col in zip(module_paths, range(2, ncols)):
-        rand_layers(model_copy, [path])
+    for (i, path), col in zip(enumerate(module_paths), range(2, ncols)):
+        rand_layers(model_copy, module_paths[:i+1])
         for (image, label), row in zip(examples, range(nrows)):
             pred = model_copy(image).argmax(axis=1).item()
             sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
@@ -172,9 +172,9 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
 
     # visualization before scrambling the model, and cascading randomization and visualization
     # start with 2 because 1st column is unscrambled model
-    for path, col in zip([None] + module_paths, range(1, ncols)):
+    for (i, path), col in zip(enumerate([None] + module_paths), range(1, ncols)):
         if col != 1:
-            rand_layers(model_copy, [path])
+            rand_layers(model_copy, module_paths[:i])
         for sal_method, row in zip(sal_methods, range(nrows)):
             # pred = model_copy(image).argmax(axis=1).item()
             print("Working on " + sal_method[0].__name__)
@@ -217,8 +217,8 @@ def ssim_saliency_comparison(model, module_paths, sal_methods, sal_method_names,
 
     # iterate over scrambled versions of the model
     ssim_similarities = {} # key: (model_scramble_stage, sal_method_id)
-    for path in module_paths:
-        rand_layers(model_copy, [path])
+    for i, path in enumerate(module_paths):
+        rand_layers(model_copy, module_paths[:i + 1])
         for (sal_id, sal_method), sal_method_name in zip(enumerate(sal_methods), sal_method_names):
             ssim_sum = 0
             errors = 0
