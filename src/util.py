@@ -96,7 +96,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
     # make plt plot
     nrows = len(examples)
     ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows), tight_layout=TIGHT_LAYOUT_PARAMS)
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3*ncols, 3*nrows), tight_layout=TIGHT_LAYOUT_PARAMS)
 
     # show input image at the very left
     for (original, label), (image, _), row in zip(examples if not originals else originals, examples, range(nrows)):
@@ -118,17 +118,15 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         if cls_index_to_name:
             # lookup title name
             title = cls_index_to_name[label.item()]
-            preds = "\n".join([f"{cls_index_to_name[top_idx.item()]} (p={top_prob:.2f})" for top_idx, top_prob in zip(top_idxs, top_probs)])
+            preds = "\n".join([f"{cls_index_to_name[top_idx.item()]} ({top_prob:.2f})" for top_idx, top_prob in zip(top_idxs, top_probs)])
         else:
             title = str(label.item())
-            preds = "\n".join([f"{str(top_idx.item())} (p={top_prob:.2f})" for top_idx, top_prob in zip(top_idxs, top_probs)])
-        # pred = model(image)
-        axs[row, 0].set_ylabel("true: " + title + "\npreds: " + str(preds), rotation=90, size='large')
+            preds = "\n".join([f"{str(top_idx.item())} ({top_prob:.2f})" for top_idx, top_prob in zip(top_idxs, top_probs)])
+        axs[row, 0].set_ylabel("true:\n" + title + "\npred:\n" + str(preds), fontsize=16)
 
 
     # show visualizations before scrambling the model
     for (image, label), row in zip(examples, range(nrows)):
-        pred = model_copy(image).argmax(axis=1).item()
         sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
         fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, 1]), viz_method)
 
@@ -137,14 +135,13 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
     for (i, path), col in zip(enumerate(module_paths), range(2, ncols)):
         rand_layers(model_copy, module_paths[:i+1])
         for (image, label), row in zip(examples, range(nrows)):
-            pred = model_copy(image).argmax(axis=1).item()
             sal_kwargs = get_kwargs(saliency_method, model_copy, image, label)
             fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method)
 
     # set titles for each column
     col_titles = ['input', 'normal model'] + [x for x in map((lambda x: '_'.join(x)), module_paths)]
     for ax, col in zip(axs[0], col_titles):
-        ax.set_title(col)
+        ax.set_title(col, fontsize=16)
 
     # set title for the whole thing
     fig.suptitle(saliency_method[0].__name__ + " (Smoothing = " + str(saliency_method[1]) + ")", y=1.02, fontsize=36)
@@ -160,7 +157,7 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
     # make plt plot
     nrows = len(sal_methods)
     ncols = len(module_paths) + 2
-    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(4*ncols, 4*nrows), tight_layout=TIGHT_LAYOUT_PARAMS)
+    fig, axs = plt.subplots(nrows=nrows, ncols=ncols, figsize=(3*ncols, 3*nrows), tight_layout=TIGHT_LAYOUT_PARAMS)
 
     # show input image at the very left
     for row in range(nrows):
@@ -176,19 +173,17 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
         if col != 1:
             rand_layers(model_copy, module_paths[:i])
         for sal_method, row in zip(sal_methods, range(nrows)):
-            # pred = model_copy(image).argmax(axis=1).item()
-            print("Working on " + sal_method[0].__name__)
             sal_kwargs = get_kwargs(sal_method, model_copy, image, label)
             fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method)
 
     # set titles for each column
     col_titles = ['input', 'normal model'] + [x for x in map((lambda x: '_'.join(x)), module_paths)]
     for ax, col in zip(axs[0], col_titles):
-        ax.set_title(col)
+        ax.set_title(col, fontsize=16)
 
     # set titles for each row
     for ax, name in zip(axs[:,0], sal_method_names):
-        ax.set_ylabel(name, rotation=90, size='large')
+        ax.set_ylabel(name, fontsize=16)
 
     # set title for the whole thing
     fig.suptitle("Cascading Randomization", y=1.02, fontsize=36)
@@ -218,6 +213,7 @@ def ssim_saliency_comparison(model, module_paths, sal_methods, sal_method_names,
     # iterate over scrambled versions of the model
     ssim_similarities = {} # key: (model_scramble_stage, sal_method_id)
     for i, path in enumerate(module_paths):
+        print(f"layer: {i + 1} of {len(module_paths)}")
         rand_layers(model_copy, module_paths[:i + 1])
         for (sal_id, sal_method), sal_method_name in zip(enumerate(sal_methods), sal_method_names):
             ssim_sum = 0
