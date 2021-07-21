@@ -13,3 +13,6 @@ SSIM similarities for ResNet18:
   - use of deprecated function by captum with ReLU (settings non-full backward hooks)
   -> this only happens sometimes for some reason
   - returns very different results sometimes
+
+ResNet stuff:
+- use blended_heatmap for visualization

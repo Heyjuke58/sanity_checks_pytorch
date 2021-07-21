@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import copy
 from skimage.measure import compare_ssim
 from typing import Tuple, Any
+import math
 
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
@@ -225,9 +226,10 @@ def ssim_saliency_comparison(model, module_paths, sal_methods, sal_method_names,
                     attribution = attribute_image_features(**get_kwargs(sal_method, model_copy, img, label))
                     attribution = normalize_0_1(attribution.squeeze().permute(1, 2, 0)).detach().numpy()
                     #attrs = _normalize_image_attr(np.transpose(attrs.squeeze(0).detach().numpy(), (1,2,0)), "absolute_value")
-                    # TODO: use skimage ssim with 3 channels
-                    # TODO: skimage: scikit-image 0.15.0
-                    ssim_sum += compare_ssim(original_explanations[(img_id, sal_id)], attribution, multichannel=True, gaussian_weights=True) # calculate ssim score with original attribution and add to sum
+                    ssim_score = compare_ssim(original_explanations[(img_id, sal_id)], attribution, multichannel=True, gaussian_weights=True) # calculate ssim score with original attribution and add to sum
+                    if math.isnan(ssim_score):
+                        raise Exception("SSIM score is nan")
+                    ssim_sum += ssim_score
                 except Exception as e:
                     print(e)
                     print(f'Error with image: {img_id}, sal method: {sal_method_name}, path: {"_".join(path)}')
