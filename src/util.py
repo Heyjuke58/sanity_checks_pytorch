@@ -21,6 +21,7 @@ TIGHT_LAYOUT_PARAMS = {
         "rect": (0, 0, 1, 1)
     }
 
+# recursively walks through a model and calls randomize fuction. Cascading randomization can be achieved with this.
 def rand_layers(model, module_paths):
     for module_path in module_paths:
         cur = model
@@ -28,7 +29,7 @@ def rand_layers(model, module_paths):
             cur = getattr(cur, name)
         randomize(cur)
 
-
+# randomizes a layer
 def randomize(layer):
     if isinstance(layer, (Conv2d, Linear, BatchNorm2d)):
         # use previous statistical values for the randomization of that specific layer
@@ -38,15 +39,14 @@ def randomize(layer):
         for child in layer.children():
             randomize(child)
 
-
+# calculate the image attribution for a given saliency method (algorithm)
 def attribute_image_features(model, algorithm, input, label, **kwargs):
     model.zero_grad()
     tensor_attributions = algorithm.attribute(input, target=label, **kwargs)
 
     return tensor_attributions
 
-
-# Given a NN model, ...
+# visualizes saliency method code adopted from captum turorial page
 def visualize_saliency_method(saliency_kwargs, image, plt_fig_axis, viz_method, cmap):
     image.requires_grad = True
     attrs = attribute_image_features(**saliency_kwargs)
@@ -56,7 +56,7 @@ def visualize_saliency_method(saliency_kwargs, image, plt_fig_axis, viz_method, 
                           plt_fig_axis=plt_fig_axis, cmap=cmap, show_colorbar=False,
                           use_pyplot=False, alpha_overlay=0.9)
 
-
+# helper function to get kwargs for specific saliency methods
 def get_kwargs(saliency_method: Tuple[Any, bool], model, image, label):
     saliency_method, noise_tunnelling = saliency_method
     sal_kwargs = { # these are the default args for attribute_image_features
@@ -89,7 +89,7 @@ def get_kwargs(saliency_method: Tuple[Any, bool], model, image, label):
 
     return sal_kwargs
 
-
+# Returns a subplots figure with images in examples in the rows and a saliency map of the specified method in each randomization step in the columns
 # topn: How many top prediction results should be printed out for each image
 def visualize_cascading_randomization(model, module_paths, saliency_method, examples, originals=None, cls_index_to_name=None, topn=1, viz_method="heat_map", cmap="Reds"):
     model_copy = copy.deepcopy(model)
@@ -106,15 +106,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
         axs[row, 0].axis('on')
         axs[row, 0].set_xticks([])
         axs[row, 0].set_yticks([])
-        # show true label for each row
-        # probabilities = torch.nn.functional.softmax(output[0], dim=0)
-        # # Read the categories
-        # with open("imagenet_classes.txt", "r") as f:
-        #     categories = [s.strip() for s in f.readlines()]
-        # # Show top categories per image
-        # top5_prob, top5_catid = torch.topk(probabilities, 5)
-        # for i in range(top5_prob.size(0)):
-        #     print(categories[top5_catid[i]], top5_prob[i].item())
+
         top_probs, top_idxs = torch.topk(torch.nn.functional.softmax(model(image)[0], dim=0), topn)
         if cls_index_to_name:
             # lookup title name
@@ -149,7 +141,8 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
 
     return fig, axs
 
-
+# Returns a subplots figure with each saliency mehtods specified in sal_methods in the rows and a saliency maps for each randomization step in the columns.
+# Parameter example has to be a single image with label (image, label)
 def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_method_names, example, original=None, viz_method="heat_map", cmap='Reds'):
     model_copy = copy.deepcopy(model)
     image, label = example
@@ -199,7 +192,7 @@ def normalize_0_1(tensor):
     return tensor
 
 
-#
+# Returns a dict with the averaged SSIM scores for each module path and saliency method over all images in data_loader
 def ssim_saliency_comparison(model, module_paths, sal_methods, sal_method_names, data_loader):
     model_copy = copy.deepcopy(model)
 
