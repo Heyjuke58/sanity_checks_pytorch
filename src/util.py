@@ -46,13 +46,14 @@ def attribute_image_features(model, algorithm, input, label, **kwargs):
 
     return tensor_attributions
 
-# visualizes saliency method code adopted from captum turorial page
-def visualize_saliency_method(saliency_kwargs, image, plt_fig_axis, viz_method, cmap):
+
+# Given a NN model, ...
+def visualize_saliency_method(saliency_kwargs, image, plt_fig_axis, viz_method, cmap, sign="absolute_value"):
     image.requires_grad = True
     attrs = attribute_image_features(**saliency_kwargs)
     attrs = np.transpose(attrs.squeeze(0).cpu().detach().numpy(), (1,2,0))
     original_image = np.transpose(image.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
-    return viz.visualize_image_attr(attrs, original_image, method=viz_method, sign="absolute_value",
+    return viz.visualize_image_attr(attrs, original_image, method=viz_method, sign=sign,
                           plt_fig_axis=plt_fig_axis, cmap=cmap, show_colorbar=False,
                           use_pyplot=False, alpha_overlay=0.9)
 
@@ -143,7 +144,7 @@ def visualize_cascading_randomization(model, module_paths, saliency_method, exam
 
 # Returns a subplots figure with each saliency mehtods specified in sal_methods in the rows and a saliency maps for each randomization step in the columns.
 # Parameter example has to be a single image with label (image, label)
-def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_method_names, example, original=None, viz_method="heat_map", cmap='Reds'):
+def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_method_names, example, original=None, viz_method="heat_map", cmap='Reds', sign='absolute_value'):
     model_copy = copy.deepcopy(model)
     image, label = example
     original = image if original is None else original # for showing unnormalized image
@@ -168,7 +169,7 @@ def visualize_cascading_randomization2(model, module_paths, sal_methods, sal_met
             rand_layers(model_copy, module_paths[:i])
         for sal_method, row in zip(sal_methods, range(nrows)):
             sal_kwargs = get_kwargs(sal_method, model_copy, image, label)
-            fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method, cmap)
+            fig, _ = visualize_saliency_method(sal_kwargs, image, (fig, axs[row, col]), viz_method, cmap, sign=sign)
 
     # set titles for each column
     col_titles = ['input', 'normal model'] + [x for x in map((lambda x: '_'.join(x)), module_paths)]
